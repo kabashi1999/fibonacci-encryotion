@@ -4,7 +4,8 @@ from operator import xor
 import file as f
 import key as k
 
-data_path = input('enter data file path: ')
+data_path = input('enter plaintext file path: ')
+encrypt_path = input('enter the encrypted file path: ')
 key = int(input('enter a fibonacci sequance number to generate the key: '))
 cipher = blowfish.Cipher(k.generate_key(key))
 
@@ -19,7 +20,7 @@ dec_counter = blowfish.ctr_counter(nonce, f = xor)
 data_encrypted = b"".join(cipher.encrypt_ctr(data, enc_counter))
 data_decrypted = b"".join(cipher.decrypt_ctr(data_encrypted, dec_counter))
 
-f.write_to_file('encrypted.txt',data_encrypted)
+f.write_to_file(encrypt_path,data_encrypted)
 f.write_to_file('decrypted.txt',data_decrypted)
 
 assert data == data_decrypted
