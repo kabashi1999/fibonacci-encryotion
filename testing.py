@@ -4,11 +4,11 @@ from operator import xor
 import file as f
 import key as k
 
-data_path = input('enter data file path:')
-key = int(input('enter a fibonacci sequance number to generate the key'))
+data_path = input('enter data file path: ')
+key = int(input('enter a fibonacci sequance number to generate the key: '))
 cipher = blowfish.Cipher(k.generate_key(key))
 
-data = f.read_file('data.txt')
+data = f.read_file(data_path)
 
 
 # increment by one counters

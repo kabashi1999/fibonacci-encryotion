@@ -1,11 +1,10 @@
 
-
 from struct import Struct, error as struct_error
 from itertools import cycle as iter_cycle
 
-__version__ = "0.7.1"
 
-# PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
+
+# PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of pi 
 # taken from <https://www.schneier.com/code/constants.txt>.
 
 # 1 x 18
@@ -200,8 +199,6 @@ PI_S_BOXES = (
 )
 
 class Cipher(object):
-  
-  
   def __init__(
     self, 
     key,
@@ -209,15 +206,18 @@ class Cipher(object):
     P_array = PI_P_ARRAY,
     S_boxes = PI_S_BOXES
   ):
+    #if a key other than 32 bits is used check the limits of the key
     if not 4 <= len(key) <= 56:
       raise ValueError("key is not between 4 and 56 bytes")
     
+    #if a different p_array and different S-box other than the pi generated one is used 
+    #check that they have the proper dimensions
     if not len(P_array) or len(P_array) % 2 != 0:
       raise ValueError("P array is not an even length sequence")
     
     if len(S_boxes) != 4 or any(len(box) != 256 for box in S_boxes):
       raise ValueError("S-boxes is not a 4 x 256 sequence")
-      
+    #byte order represent how bytes are read when a different device tries to read the data other than the one that created it
     if byte_order == "big":
       byte_order_fmt = ">"
     elif byte_order == "little":
@@ -226,14 +226,15 @@ class Cipher(object):
       raise ValueError("byte order must either be 'big' or 'little'")
     self.byte_order = byte_order
     
-    # Create structs
+    # Structs are used for bits manipulation
+    #u stannds for unsigned, the number next to it represent the number of bytes for a single pack/unpack element
+    #the next number represents the number of elements in a pack unpack operation
     u4_2_struct = Struct("{}2I".format(byte_order_fmt))
     u4_1_struct = Struct(">I".format(byte_order_fmt))
     u8_1_struct = Struct("{}Q".format(byte_order_fmt))
     u1_4_struct = Struct("=4B")
       
-    # Save refs locally to the needed pack/unpack funcs of the structs to speed
-    # up look-ups a little.
+    # Save references locally to the pack/unpack functions of the structs 
     self._u4_2_pack = u4_2_struct.pack
     self._u4_2_unpack = u4_2_struct.unpack
     self._u4_2_iter_unpack = u4_2_struct.iter_unpack
@@ -284,7 +285,7 @@ class Cipher(object):
     for i in range(len(P)):
       P[i] = L, R = encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     
-    # Save P as a tuple since working with tuples is slightly faster
+    # Save P as a tuple 
     self.P = P = tuple(P)
         
     for box in S:
@@ -320,76 +321,8 @@ class Cipher(object):
     p_first, p_second = P[0]
     return R ^ p_first, L ^ p_second
   
-  def encrypt_block(self, block):
-    
-    S0, S1, S2, S3 = self.S
-    P = self.P
-    
-    u4_1_pack = self._u4_1_pack
-    u1_4_unpack = self._u1_4_unpack
-    
-    try:
-      L, R = self._u4_2_unpack(block)
-    except struct_error:
-      raise ValueError("block is not 8 bytes in length")
-    
-    for p1, p2 in P[:-1]:
-      L ^= p1
-      a, b, c, d = u1_4_unpack(u4_1_pack(L))
-      R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      R ^= p2
-      a, b, c, d = u1_4_unpack(u4_1_pack(R))
-      L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-    p_penultimate, p_last = P[-1]
-    return self._u4_2_pack(R ^ p_last, L ^ p_penultimate)
-  
-  def decrypt_block(self, block):
-    
-    S0, S1, S2, S3 = self.S
-    P = self.P
-    
-    u4_1_pack = self._u4_1_pack
-    u1_4_unpack = self._u1_4_unpack
-    
-    try:
-      L, R = self._u4_2_unpack(block)
-    except struct_error:
-      raise ValueError("block is not 8 bytes in length")
-    
-    for p2, p1 in P[:0:-1]:
-      L ^= p1
-      a, b, c, d = u1_4_unpack(u4_1_pack(L))
-      R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      R ^= p2
-      a, b, c, d = u1_4_unpack(u4_1_pack(R))
-      L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-    p_first, p_second = P[0]
-    return self._u4_2_pack(R ^ p_first, L ^ p_second)
-    
 
   def encrypt_ctr(self, data, counter):
-    """
-    Return an iterator that encrypts `data` using the Counter (CTR) mode of
-    operation.
-    
-    CTR mode can operate on `data` of any length.
-    
-    Each iteration, except the last, always returns a block-sized :obj:`bytes`
-    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
-    with a length less than the block-size, if `data` is not a multiple of the
-    block-size in length.
-        
-    `counter` should be an iterable sequence of 64-bit integers which are
-    guaranteed not to repeat for a long time.
-    If any integer in the sequence is not less than 2^64, a :exc:`ValueError`
-    exception is raised.
-    ``len(counter)`` should be at least as much as ``ceil(len(data)/8)``,
-    otherwise the returned iterator will only encrypt `data` partially,
-    stopping when `counter` is exhausted.
-    A good default is implemented by :func:`blowfish.ctr_counter`.
-    
-    `data` should be a :obj:`bytes`-like object (of any length).
-    """
     S1, S2, S3, S4 = self.S
     P = self.P
     
@@ -441,40 +374,12 @@ class Cipher(object):
       )
 
   def decrypt_ctr(self, data, counter):
-    """
-    Return an iterator that decrypts `data` using the Counter (CTR) mode of
-    operation.
-    
-    .. note::
-        
-        In CTR mode, decrypting is the same as encrypting.
-        Therefore, calling this function is the same as calling
-        :meth:`encrypt_ctr`.
-        
-    .. seealso::
-    
-        :meth:`encrypt_ctr`
-    """
+    # in CTR both encryption and decryption have the same operation 
     return self.encrypt_ctr(data, counter)
       
 
-
-    
 def ctr_counter(nonce, f, start = 0):
-  """
-  Return an infinite iterator that starts at `start` and iterates by 1 over
-  integers between 0 and 2^64 - 1 cyclically, returning on each iteration the
-  result of combining each number with `nonce` using function `f`.
-  
-  `nonce` should be an random 64-bit integer that is used to make the counter
-  unique.
-  
-  `f` should be a function that takes two 64-bit integers, the first being the
-  `nonce`, and combines the two in a lossless manner (i.e. xor, addition, etc.)
-  The returned value should be a 64-bit integer.
-  
-  `start` should be a number less than 2^64.
-  """
+  #an infinte iterator for the CTR method
   for n in range(start, 2**64):
     yield f(nonce, n)
   while True:
